@@ -64,8 +64,6 @@ ax1.plot(station_data,
 ax2.plot(aod["AOD"],
          color="red",
          label="AOD$_{550nm}$")
-fig.legend(frameon=False,
-           loc="center")
 ax1.axhline(parameters["line"],
             color="#6a040f")
 plt.xticks(aod.index,
@@ -74,10 +72,15 @@ plt.title(f"Fecha: {date}")
 ax1.set_ylabel(f"{pollutant} ($\\mu$gr/m$^3$)")
 ax2.set_ylabel("AOD$_{550nm}$")
 plt.xlabel("Hora local")
+fig.legend(frameon=False,
+           ncol=2,
+           bbox_to_anchor=(0.5, 0.9, 0, 0),
+           loc="upper center")
 plt.tight_layout()
 filename = argv[2].replace("-", "_")
-filename = f"{filename}_{argv[1]}_AOD.png"
+filename = f"{filename}_AOD_temporal.png"
 filename = join(params["path graphics"],
+                argv[1],
                 filename)
 plt.savefig(filename,
             dpi=400)

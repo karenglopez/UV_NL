@@ -1,20 +1,43 @@
+from sklearn.linear_model import LinearRegression
+from Modules.functions import fill_number
 from Modules.params import get_params
+from sklearn.metrics import r2_score
 import matplotlib.pyplot as plt
 from os.path import join
+from numpy import array
 from sys import argv
 from pandas import (
     to_datetime,
     DataFrame,
     read_csv,
-    concat
 )
 
-params = get_params()
 
+def fit(x: DataFrame,
+        y: DataFrame) -> LinearRegression:
+    Regression = LinearRegression(fit_intercept=False)
+    x = x.to_numpy()
+    x = x.reshape(-1, 1)
+    y = y.to_numpy()
+    y = y.flatten()
+    regression = Regression.fit(x, y)
+    score = get_R2(x,
+                   y,
+                   regression)
+    return regression, score
+
+
+def get_R2(x: array,
+           y: array,
+           regression: LinearRegression) -> float:
+    y_pred = regression.predict(x)
+    score = r2_score(y, y_pred)
+    return score
+
+
+params = get_params()
 pollutant = argv[1]
-date = to_datetime(argv[2])
 station_key = "NO"
-date = date.date()
 filename = f"{pollutant}_2015_2022.csv"
 filename = join(params["path data"],
                 "SIMA",
@@ -22,51 +45,41 @@ filename = join(params["path data"],
 data = read_csv(filename,
                 index_col=0,
                 parse_dates=True)
-pm = data[data.index.date == date]
-station_data = DataFrame(pm[station_key])
-
+station_data = DataFrame(data[station_key])
 filename = "AOD_search.csv"
 filename = join(params["path results"],
                 filename)
 aod = read_csv(filename,
                index_col=0,
                parse_dates=True)
-aod = aod[aod.index.date == date]
-aod = aod.resample("H").mean()
-
-station_data = station_data.loc[aod.index]
-
-data = concat([station_data,
-               aod],
-              axis=1)
-data.columns = ["PM2.5",
-                "AOD",
-                "RD"]
-plt.scatter(data["PM2.5"],
-            data["AOD"])
-plt.title(f"Fecha: {date}")
-plt.xlabel("PM2.5")
-plt.ylabel("AOD$_{550nm}$")
+aod[pollutant] = 0
+for index in aod.index:
+    date = index.date()
+    hour = index.hour
+    hour = fill_number(hour,
+                       2)
+    date = f"{date} {hour}:00"
+    date = to_datetime(date)
+    pm_hour = station_data.loc[date]
+    pm_hour = pm_hour[station_key]
+    aod.loc[index, pollutant] = pm_hour
+regression, score = fit(aod["AOD"],
+                        aod[pollutant])
+coef = regression.coef_
+coef = round(coef[0], 4)
+y_pred = regression.predict([[0.2], [0.6]])
+fig = plt.figure()
+ax = fig.add_subplot(projection='polar')
+ax.scatter(aod["AOD"],
+           aod[pollutant])
+# plt.plot([0, 0.6],
+# y_pred,
+# color="#6a994e",
+# label=f"y={coef}x")
+plt.ylim(0, 40)
+plt.xlim(0.2, 0.6)
+plt.ylabel("PM2.5")
+plt.xlabel("AOD$_{550nm}$")
+plt.legend(frameon=False)
+plt.tight_layout()
 plt.show()
-# ax1.plot(station_data,
-# color=color,
-# label=pollutant)
-# ax2.plot(aod["AOD"],
-# color="red",
-# label="AOD$_{550nm}$")
-# fig.legend(frameon=False,
-# loc="center")
-# ax1.axhline(parameters["line"],
-# color="#6a040f")
-# plt.xticks(aod.index,
-# aod.index.hour)
-# ax1.set_ylabel(f"{pollutant} ($\\mu$gr/m$^3$)")
-# ax2.set_ylabel("AOD$_{550nm}$")
-# plt.xlabel("Hora local")
-# plt.tight_layout()
-# filename = argv[2].replace("-", "_")
-# filename = f"{filename}_{argv[1]}_AOD.png"
-# filename = join(params["path graphics"],
-# filename)
-# plt.savefig(filename,
-# dpi=400)
